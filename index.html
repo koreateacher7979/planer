@@ -12,6 +12,18 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
         [v-cloak] { display: none; }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -36,8 +48,8 @@
                     <label class="block text-sm font-medium text-slate-700 mb-1">코드번호</label>
                     <input type="text" id="access-code-input" placeholder="예: 123456" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" required>
                 </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md">
-                    입장하기
+                <button type="submit" id="btn-enter" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                    <span>입장하기</span>
                 </button>
             </form>
         </div>
@@ -56,7 +68,7 @@
                     <span id="display-code" class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-100 ml-2"></span>
                 </div>
                 <button onclick="logout()" class="flex items-center gap-1 text-slate-500 hover:text-red-500 transition-colors text-sm font-medium">
-                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <i data-lucide="log-out" class="w-4 h-4 text-current"></i>
                     <span>코드 종료</span>
                 </button>
             </div>
@@ -71,10 +83,10 @@
                         <h2 id="calendar-title" class="text-xl font-bold text-slate-800">2024년 5월</h2>
                         <div class="flex gap-2">
                             <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                <i data-lucide="chevron-left" class="w-5 h-5 text-slate-600"></i>
+                                <i data-lucide="chevron-left" class="w-5 h-5 text-slate-600 text-current"></i>
                             </button>
                             <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-600"></i>
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-600 text-current"></i>
                             </button>
                         </div>
                     </div>
@@ -95,7 +107,7 @@
                 <!-- Events List -->
                 <div class="space-y-4">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="clock" class="w-4 h-4 text-blue-500"></i>
+                        <i data-lucide="clock" class="w-4 h-4 text-blue-500 text-current"></i>
                         다가오는 일정
                     </h3>
                     <div id="events-list" class="grid gap-4">
@@ -108,7 +120,7 @@
             <div class="lg:col-span-1">
                 <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sticky top-24">
                     <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <i data-lucide="plus" class="text-blue-600"></i>
+                        <i data-lucide="plus" class="text-blue-600 text-current"></i>
                         일정 새로 만들기
                     </h3>
                     <form id="add-event-form" class="space-y-4">
@@ -135,7 +147,7 @@
                             <textarea id="event-notes" rows="3" placeholder="메모를 남겨주세요." class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none resize-none"></textarea>
                         </div>
                         <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2">
-                            <i data-lucide="plus" class="w-5 h-5"></i>
+                            <i data-lucide="plus" class="w-5 h-5 text-current"></i>
                             일정 추가하기
                         </button>
                     </form>
@@ -151,7 +163,13 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // Global State
-        const firebaseConfig = JSON.parse(__firebase_config);
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } catch (e) {
+            console.error("Firebase config error:", e);
+        }
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -161,6 +179,7 @@
         let currentCode = "";
         let events = [];
         let viewMonth = new Date();
+        let unsubscribeEvents = null;
 
         // DOM Elements
         const entryScreen = document.getElementById('entry-screen');
@@ -169,63 +188,93 @@
         const addEventForm = document.getElementById('add-event-form');
         const calendarGrid = document.getElementById('calendar-grid');
         const eventsList = document.getElementById('events-list');
+        const btnEnter = document.getElementById('btn-enter');
 
         // Init Auth (Rule 3)
         const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
             }
         };
 
+        // Listen for auth state changes
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
+            // If user has already entered a code and auth just finished, start sub
+            if (currentUser && currentCode) {
+                startDataSubscription();
+            }
             lucide.createIcons();
         });
 
+        // Initialize immediately
         initAuth();
 
         // Login Handler
         loginForm.onsubmit = (e) => {
             e.preventDefault();
-            const code = document.getElementById('access-code-input').value.trim();
-            if (code.length < 2) return alert("코드번호를 2자 이상 입력해주세요.");
+            const codeInput = document.getElementById('access-code-input');
+            const code = codeInput.value.trim();
+            
+            if (code.length < 2) {
+                alert("코드번호를 2자 이상 입력해주세요.");
+                return;
+            }
             
             currentCode = code;
             document.getElementById('display-code').innerText = `CODE: ${code}`;
+            
+            // UI Transition
             entryScreen.classList.add('hidden');
             appScreen.classList.remove('hidden');
             
             // Set default date to today
-            document.getElementById('event-date').value = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('event-date');
+            if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
             
-            startDataSubscription();
+            // Start data if auth is ready, otherwise onAuthStateChanged will trigger it
+            if (currentUser) {
+                startDataSubscription();
+            } else {
+                eventsList.innerHTML = '<div class="text-center py-10 text-slate-400">인증을 확인 중입니다...</div>';
+            }
+            
             renderCalendar();
             lucide.createIcons();
         };
 
         // Data Subscription (Rule 1 & 2)
-        let unsubscribeEvents = null;
         function startDataSubscription() {
-            if (!currentUser) return;
+            if (!currentUser || !currentCode) return;
+            
+            if (unsubscribeEvents) unsubscribeEvents();
             
             const eventsRef = collection(db, 'artifacts', appId, 'public', 'data', 'events');
+            
             unsubscribeEvents = onSnapshot(eventsRef, (snapshot) => {
                 const allData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                // Filter in memory (Rule 2)
+                // Filter in memory by access code (Rule 2)
                 events = allData.filter(ev => ev.code === currentCode)
                                .sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
                 
                 renderEvents();
                 renderCalendar();
-            }, (err) => console.error("Firestore Error:", err));
+            }, (err) => {
+                console.error("Firestore Error:", err);
+                eventsList.innerHTML = `<div class="text-center py-10 text-red-400 font-medium">데이터를 불러오는 중 오류가 발생했습니다.</div>`;
+            });
         }
 
         // Add Event
         addEventForm.onsubmit = async (e) => {
             e.preventDefault();
-            if (!currentUser) return;
+            if (!currentUser) return alert("인증되지 않은 사용자입니다.");
 
             const newEvent = {
                 title: document.getElementById('event-title').value,
@@ -245,7 +294,8 @@
                 document.getElementById('event-date').value = new Date().toISOString().split('T')[0];
                 document.getElementById('event-time').value = "12:00";
             } catch (err) {
-                console.error("Error adding:", err);
+                console.error("Error adding event:", err);
+                alert("일정을 저장하지 못했습니다.");
             }
         };
 
@@ -256,7 +306,10 @@
         };
 
         window.logout = () => {
-            if (unsubscribeEvents) unsubscribeEvents();
+            if (unsubscribeEvents) {
+                unsubscribeEvents();
+                unsubscribeEvents = null;
+            }
             currentCode = "";
             appScreen.classList.add('hidden');
             entryScreen.classList.remove('hidden');
@@ -264,6 +317,7 @@
         };
 
         window.deleteEvent = async (id) => {
+            if (!confirm("이 일정을 삭제하시겠습니까?")) return;
             try {
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
             } catch (err) {
@@ -274,12 +328,14 @@
         function renderCalendar() {
             const year = viewMonth.getFullYear();
             const month = viewMonth.getMonth();
-            document.getElementById('calendar-title').innerText = `${year}년 ${month + 1}월`;
+            const titleEl = document.getElementById('calendar-title');
+            if (titleEl) titleEl.innerText = `${year}년 ${month + 1}월`;
 
             const firstDay = new Date(year, month, 1).getDay();
             const totalDays = new Date(year, month + 1, 0).getDate();
             const todayStr = new Date().toISOString().split('T')[0];
 
+            if (!calendarGrid) return;
             calendarGrid.innerHTML = '';
             
             // Empty slots for first day offset
@@ -305,6 +361,8 @@
         }
 
         function renderEvents() {
+            if (!eventsList) return;
+            
             if (events.length === 0) {
                 eventsList.innerHTML = `
                     <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-slate-400">
@@ -321,22 +379,22 @@
                             <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md mb-2 inline-block">
                                 ${ev.date} | ${ev.time}
                             </span>
-                            <h4 class="text-lg font-bold text-slate-800">${ev.title}</h4>
+                            <h4 class="text-lg font-bold text-slate-800">${ev.title || '제목 없음'}</h4>
                         </div>
                         <button onclick="deleteEvent('${ev.id}')" class="text-slate-300 hover:text-red-500 transition-colors p-1">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            <i data-lucide="trash-2" class="w-4 h-4 text-current"></i>
                         </button>
                     </div>
                     <div class="mt-4 space-y-2">
                         ${ev.location ? `
                             <div class="flex items-center gap-2 text-sm text-slate-600">
-                                <i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i>
+                                <i data-lucide="map-pin" class="w-3 h-3 text-slate-400 text-current"></i>
                                 <span>${ev.location}</span>
                             </div>
                         ` : ''}
                         ${ev.notes ? `
                             <div class="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-xl mt-2">
-                                <i data-lucide="file-text" class="w-3 h-3 text-slate-400 mt-0.5 shrink-0"></i>
+                                <i data-lucide="file-text" class="w-3 h-3 text-slate-400 mt-0.5 shrink-0 text-current"></i>
                                 <p class="whitespace-pre-wrap">${ev.notes}</p>
                             </div>
                         ` : ''}
@@ -347,7 +405,7 @@
         }
 
         // Initialize icons on load
-        window.onload = () => lucide.createIcons();
+        window.addEventListener('load', () => lucide.createIcons());
     </script>
 </body>
 </html>
