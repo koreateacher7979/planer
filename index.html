@@ -3,194 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Calendar Sync</title>
+    <title>가치있는 미래교육 일정 관리 시스템</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+    <!-- FullCalendar JS (Fixed: Missing JS library added) -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        [v-cloak] { display: none; }
-        .loading-spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+        .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 700 !important; }
+        .fc-event { cursor: pointer; border-radius: 4px; border: none; padding: 2px 4px; }
+        .fc-daygrid-day:hover { background-color: #f1f5f9; cursor: pointer; }
+        .fc-button-primary { background-color: #4f46e5 !important; border-color: #4f46e5 !important; }
+        .fc-button-primary:hover { background-color: #4338ca !important; border-color: #4338ca !important; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body class="min-h-screen flex flex-col">
 
-    <!-- Developer Credit Banner -->
-    <div class="bg-slate-800 text-slate-100 text-center py-2.5 px-4 text-xs sm:text-sm font-semibold tracking-tight shadow-sm">
-        <span class="opacity-80">개발자:</span> 가치있는 미래교육 연구소 대표 김병찬
-    </div>
+    <!-- Developer Header -->
+    <header class="bg-indigo-700 text-white py-6 px-4 shadow-lg text-center">
+        <h2 class="text-sm font-medium opacity-90 mb-1">VALUE-BASED FUTURE EDUCATION</h2>
+        <h1 class="text-2xl md:text-3xl font-bold">개발자: 가치있는 미래교육 연구소 대표 김병찬</h1>
+    </header>
 
-    <!-- Auth / Entry Screen -->
-    <div id="entry-screen" class="min-h-[calc(100vh-44px)] flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
-            <div class="flex flex-col items-center mb-8">
-                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-200">
-                    <i data-lucide="lock" class="text-white w-8 h-8"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-slate-800">Smart Calendar Sync</h1>
-                <p class="text-slate-500 mt-2 text-center text-sm">접속할 코드번호를 입력해주세요.<br/>동일한 코드로 어디서든 일정을 확인할 수 있습니다.</p>
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Login Section (Code Input) -->
+        <div id="login-section" class="bg-white rounded-2xl shadow-xl p-8 max-w-md mx-auto mt-10">
+            <div class="text-center mb-6">
+                <i data-lucide="lock" class="mx-auto w-12 h-12 text-indigo-600 mb-2"></i>
+                <h2 class="text-2xl font-bold text-gray-800">일정 코드 입력</h2>
+                <p class="text-gray-500 text-sm mt-1">사용자의 고유 코드번호를 입력해 접속하세요.</p>
             </div>
-            <form id="login-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">코드번호</label>
-                    <input type="text" id="access-code-input" placeholder="예: 123456" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" required>
-                </div>
-                <button type="submit" id="btn-enter" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
-                    <span>입장하기</span>
+            <div class="space-y-4">
+                <input type="text" id="user-code" placeholder="코드번호를 입력하세요 (예: 1234)" 
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all">
+                <button onclick="accessCalendar()" 
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="w-5 h-5"></i> 입장하기
                 </button>
-            </form>
+            </div>
+        </div>
+
+        <!-- Main Calendar Section (Hidden by default) -->
+        <div id="calendar-section" class="hidden space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-indigo-100 rounded-lg">
+                        <i data-lucide="calendar" class="w-6 h-6 text-indigo-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium">접속 코드</p>
+                        <h3 id="display-code" class="text-lg font-bold text-gray-800"></h3>
+                    </div>
+                </div>
+                <button onclick="logout()" class="text-sm text-gray-500 hover:text-red-500 flex items-center gap-1 transition-colors">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> 다른 코드로 접속
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Calendar View -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-md">
+                    <div id="calendar"></div>
+                </div>
+
+                <!-- Control Panel & Form -->
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-md border border-indigo-50">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i> 새 일정 등록
+                        </h3>
+                        <form id="schedule-form" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">일정명</label>
+                                <input type="text" id="event-title" required class="w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">시작일</label>
+                                    <input type="date" id="event-date" required class="w-full px-3 py-2 border rounded-md text-sm outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">시간</label>
+                                    <input type="time" id="event-time" class="w-full px-3 py-2 border rounded-md text-sm outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">장소</label>
+                                <input type="text" id="event-location" class="w-full px-3 py-2 border rounded-md outline-none" placeholder="장소 입력">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">기타 내용</label>
+                                <textarea id="event-desc" rows="3" class="w-full px-3 py-2 border rounded-md outline-none text-sm" placeholder="상세 내용"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-md font-semibold hover:bg-indigo-700 transition-colors">
+                                일정 저장하기
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">안내사항</h3>
+                        <ul class="text-sm text-gray-600 space-y-2 list-disc pl-4">
+                            <li>입력하신 코드는 개인의 저장소 식별자로 사용됩니다.</li>
+                            <li>달력의 날짜를 클릭하면 해당 날짜가 즉시 선택됩니다.</li>
+                            <li>일정을 클릭하면 상세 내용을 확인하고 삭제할 수 있습니다.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Event Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div class="flex justify-between items-start mb-4">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800"></h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x"></i></button>
+            </div>
+            <div class="space-y-3 text-sm text-gray-600">
+                <p class="flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4"></i> <span id="modal-time"></span></p>
+                <p class="flex items-center gap-2"><i data-lucide="map-pin" class="w-4 h-4"></i> <span id="modal-location"></span></p>
+                <div class="p-3 bg-gray-50 rounded-lg mt-2 min-h-[60px]">
+                    <p id="modal-desc" class="whitespace-pre-wrap"></p>
+                </div>
+            </div>
+            <div class="mt-6 flex gap-2">
+                <button id="delete-btn" class="flex-1 bg-red-50 text-red-600 py-2 rounded-lg font-semibold hover:bg-red-100 transition-colors">일정 삭제</button>
+                <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors">닫기</button>
+            </div>
         </div>
     </div>
 
-    <!-- Main App Screen (Hidden by default) -->
-    <div id="app-screen" class="hidden min-h-screen pb-20">
-        <!-- Header -->
-        <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
-            <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <div class="bg-blue-600 p-1.5 rounded-lg">
-                        <i data-lucide="calendar" class="text-white w-5 h-5"></i>
-                    </div>
-                    <span class="font-bold text-slate-800 hidden sm:block">My Calendar</span>
-                    <span id="display-code" class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-100 ml-2"></span>
-                </div>
-                <button onclick="logout()" class="flex items-center gap-1 text-slate-500 hover:text-red-500 transition-colors text-sm font-medium">
-                    <i data-lucide="log-out" class="w-4 h-4 text-current"></i>
-                    <span>코드 종료</span>
-                </button>
-            </div>
-        </header>
-
-        <main class="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Left Column: Calendar & List -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- Calendar Card -->
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 id="calendar-title" class="text-xl font-bold text-slate-800">2024년 5월</h2>
-                        <div class="flex gap-2">
-                            <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                <i data-lucide="chevron-left" class="w-5 h-5 text-slate-600 text-current"></i>
-                            </button>
-                            <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-600 text-current"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-7 gap-1 text-center mb-2">
-                        <div class="text-xs font-bold py-2 text-red-400">일</div>
-                        <div class="text-xs font-bold py-2 text-slate-400">월</div>
-                        <div class="text-xs font-bold py-2 text-slate-400">화</div>
-                        <div class="text-xs font-bold py-2 text-slate-400">수</div>
-                        <div class="text-xs font-bold py-2 text-slate-400">목</div>
-                        <div class="text-xs font-bold py-2 text-slate-400">금</div>
-                        <div class="text-xs font-bold py-2 text-blue-400">토</div>
-                    </div>
-                    <div id="calendar-grid" class="grid grid-cols-7 gap-1">
-                        <!-- Days injected here -->
-                    </div>
-                </div>
-
-                <!-- Events List -->
-                <div class="space-y-4">
-                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="clock" class="w-4 h-4 text-blue-500 text-current"></i>
-                        다가오는 일정
-                    </h3>
-                    <div id="events-list" class="grid gap-4">
-                        <!-- Events injected here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column: Add Form -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sticky top-24">
-                    <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <i data-lucide="plus" class="text-blue-600 text-current"></i>
-                        일정 새로 만들기
-                    </h3>
-                    <form id="add-event-form" class="space-y-4">
-                        <div>
-                            <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">일정 제목</label>
-                            <input type="text" id="event-title" placeholder="무엇을 하나요?" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none" required>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">날짜</label>
-                                <input type="date" id="event-date" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none text-sm" required>
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">시간</label>
-                                <input type="time" id="event-time" value="12:00" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none text-sm" required>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">장소</label>
-                            <input type="text" id="event-location" placeholder="어디서 만나나요?" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">기타 내용</label>
-                            <textarea id="event-notes" rows="3" placeholder="메모를 남겨주세요." class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 transition-all outline-none resize-none"></textarea>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2">
-                            <i data-lucide="plus" class="w-5 h-5 text-current"></i>
-                            일정 추가하기
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Firebase Scripts -->
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global State
-        let firebaseConfig = {};
-        try {
-            firebaseConfig = JSON.parse(__firebase_config);
-        } catch (e) {
-            console.error("Firebase config error:", e);
-        }
-
+        // Firebase Configuration
+        const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'calendar-sync-app';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'edu-calendar-app';
 
+        let calendar;
         let currentUser = null;
-        let currentCode = "";
-        let events = [];
-        let viewMonth = new Date();
-        let unsubscribeEvents = null;
+        let currentCode = null;
+        let schedules = [];
 
-        // DOM Elements
-        const entryScreen = document.getElementById('entry-screen');
-        const appScreen = document.getElementById('app-screen');
-        const loginForm = document.getElementById('login-form');
-        const addEventForm = document.getElementById('add-event-form');
-        const calendarGrid = document.getElementById('calendar-grid');
-        const eventsList = document.getElementById('events-list');
-        const btnEnter = document.getElementById('btn-enter');
+        // UI Elements
+        const loginSection = document.getElementById('login-section');
+        const calendarSection = document.getElementById('calendar-section');
+        const displayCode = document.getElementById('display-code');
+        const scheduleForm = document.getElementById('schedule-form');
 
-        // Init Auth (Rule 3)
+        // Initial Auth Setup
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -198,214 +172,180 @@
                 } else {
                     await signInAnonymously(auth);
                 }
-            } catch (error) {
-                console.error("Auth error:", error);
+            } catch (err) {
+                console.error("Auth Error:", err);
             }
         };
 
-        // Listen for auth state changes
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            // If user has already entered a code and auth just finished, start sub
-            if (currentUser && currentCode) {
-                startDataSubscription();
-            }
-            lucide.createIcons();
-        });
-
-        // Initialize immediately
         initAuth();
 
-        // Login Handler
-        loginForm.onsubmit = (e) => {
-            e.preventDefault();
-            const codeInput = document.getElementById('access-code-input');
-            const code = codeInput.value.trim();
-            
-            if (code.length < 2) {
-                alert("코드번호를 2자 이상 입력해주세요.");
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                const savedCode = sessionStorage.getItem('userCalendarCode');
+                if (savedCode) {
+                    currentCode = savedCode;
+                    showCalendar();
+                }
+            }
+        });
+
+        // Initialize Calendar
+        function initCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            if (typeof FullCalendar === 'undefined') {
+                console.error("FullCalendar library is not loaded.");
                 return;
             }
-            
-            currentCode = code;
-            document.getElementById('display-code').innerText = `CODE: ${code}`;
-            
-            // UI Transition
-            entryScreen.classList.add('hidden');
-            appScreen.classList.remove('hidden');
-            
-            // Set default date to today
-            const dateInput = document.getElementById('event-date');
-            if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-            
-            // Start data if auth is ready, otherwise onAuthStateChanged will trigger it
-            if (currentUser) {
-                startDataSubscription();
-            } else {
-                eventsList.innerHTML = '<div class="text-center py-10 text-slate-400">인증을 확인 중입니다...</div>';
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,dayGridWeek'
+                },
+                selectable: true,
+                dateClick: function(info) {
+                    document.getElementById('event-date').value = info.dateStr;
+                    document.getElementById('event-title').focus();
+                },
+                eventClick: function(info) {
+                    showEventDetail(info.event);
+                },
+                events: []
+            });
+            calendar.render();
+        }
+
+        // Functions
+        window.accessCalendar = () => {
+            const codeInput = document.getElementById('user-code');
+            if (!codeInput.value.trim()) {
+                return;
             }
-            
-            renderCalendar();
-            lucide.createIcons();
+            currentCode = codeInput.value.trim();
+            sessionStorage.setItem('userCalendarCode', currentCode);
+            showCalendar();
         };
 
-        // Data Subscription (Rule 1 & 2)
-        function startDataSubscription() {
+        window.logout = () => {
+            sessionStorage.removeItem('userCalendarCode');
+            location.reload();
+        };
+
+        function showCalendar() {
+            loginSection.classList.add('hidden');
+            calendarSection.classList.remove('hidden');
+            displayCode.innerText = currentCode;
+            lucide.createIcons();
+            
+            if (!calendar) {
+                initCalendar();
+            }
+            listenToSchedules();
+        }
+
+        // Firestore Listener
+        let unsubscribe = null;
+        function listenToSchedules() {
             if (!currentUser || !currentCode) return;
+            if (unsubscribe) unsubscribe();
+
+            const schedulesRef = collection(db, 'artifacts', appId, 'public', 'data', 'schedules');
             
-            if (unsubscribeEvents) unsubscribeEvents();
-            
-            const eventsRef = collection(db, 'artifacts', appId, 'public', 'data', 'events');
-            
-            unsubscribeEvents = onSnapshot(eventsRef, (snapshot) => {
-                const allData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                // Filter in memory by access code (Rule 2)
-                events = allData.filter(ev => ev.code === currentCode)
-                               .sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
-                
-                renderEvents();
-                renderCalendar();
-            }, (err) => {
-                console.error("Firestore Error:", err);
-                eventsList.innerHTML = `<div class="text-center py-10 text-red-400 font-medium">데이터를 불러오는 중 오류가 발생했습니다.</div>`;
+            unsubscribe = onSnapshot(schedulesRef, (snapshot) => {
+                const events = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.groupCode === currentCode) {
+                        events.push({
+                            id: doc.id,
+                            title: data.title,
+                            start: data.dateTime || data.date,
+                            extendedProps: {
+                                location: data.location,
+                                desc: data.desc,
+                                time: data.time
+                            },
+                            color: '#4f46e5'
+                        });
+                    }
+                });
+                if (calendar) {
+                    calendar.removeAllEvents();
+                    calendar.addEventSource(events);
+                }
+            }, (error) => {
+                console.error("Firestore Error:", error);
             });
         }
 
-        // Add Event
-        addEventForm.onsubmit = async (e) => {
+        // Form Submission
+        scheduleForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentUser) return alert("인증되지 않은 사용자입니다.");
+            if (!currentUser || !currentCode) return;
 
-            const newEvent = {
-                title: document.getElementById('event-title').value,
-                date: document.getElementById('event-date').value,
-                time: document.getElementById('event-time').value,
-                location: document.getElementById('event-location').value,
-                notes: document.getElementById('event-notes').value,
-                code: currentCode,
+            const title = document.getElementById('event-title').value;
+            const date = document.getElementById('event-date').value;
+            const time = document.getElementById('event-time').value;
+            const location = document.getElementById('event-location').value;
+            const desc = document.getElementById('event-desc').value;
+
+            const eventData = {
+                groupCode: currentCode,
+                title: title,
+                date: date,
+                time: time,
+                dateTime: time ? `${date}T${time}` : date,
+                location: location,
+                desc: desc,
                 createdAt: new Date().toISOString(),
                 userId: currentUser.uid
             };
 
             try {
-                const eventsRef = collection(db, 'artifacts', appId, 'public', 'data', 'events');
-                await addDoc(eventsRef, newEvent);
-                addEventForm.reset();
-                document.getElementById('event-date').value = new Date().toISOString().split('T')[0];
-                document.getElementById('event-time').value = "12:00";
+                const schedulesRef = collection(db, 'artifacts', appId, 'public', 'data', 'schedules');
+                await addDoc(schedulesRef, eventData);
+                scheduleForm.reset();
+                document.getElementById('event-date').valueAsDate = new Date();
             } catch (err) {
-                console.error("Error adding event:", err);
-                alert("일정을 저장하지 못했습니다.");
+                console.error("저장 실패:", err);
             }
-        };
+        });
 
-        // UI Helpers
-        window.changeMonth = (offset) => {
-            viewMonth.setMonth(viewMonth.getMonth() + offset);
-            renderCalendar();
-        };
-
-        window.logout = () => {
-            if (unsubscribeEvents) {
-                unsubscribeEvents();
-                unsubscribeEvents = null;
-            }
-            currentCode = "";
-            appScreen.classList.add('hidden');
-            entryScreen.classList.remove('hidden');
-            loginForm.reset();
-        };
-
-        window.deleteEvent = async (id) => {
-            if (!confirm("이 일정을 삭제하시겠습니까?")) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
-            } catch (err) {
-                console.error("Delete Error:", err);
-            }
-        };
-
-        function renderCalendar() {
-            const year = viewMonth.getFullYear();
-            const month = viewMonth.getMonth();
-            const titleEl = document.getElementById('calendar-title');
-            if (titleEl) titleEl.innerText = `${year}년 ${month + 1}월`;
-
-            const firstDay = new Date(year, month, 1).getDay();
-            const totalDays = new Date(year, month + 1, 0).getDate();
-            const todayStr = new Date().toISOString().split('T')[0];
-
-            if (!calendarGrid) return;
-            calendarGrid.innerHTML = '';
+        // Detail Modal
+        function showEventDetail(event) {
+            const modal = document.getElementById('detail-modal');
+            const props = event.extendedProps;
             
-            // Empty slots for first day offset
-            for (let i = 0; i < firstDay; i++) {
-                calendarGrid.innerHTML += '<div class="aspect-square"></div>';
-            }
-
-            for (let d = 1; d <= totalDays; d++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const hasEvent = events.some(e => e.date === dateStr);
-                const isToday = todayStr === dateStr;
-
-                const dayEl = document.createElement('div');
-                dayEl.className = 'aspect-square border border-slate-50 rounded-lg flex flex-col items-center justify-center relative hover:bg-slate-50 cursor-pointer transition-colors';
-                dayEl.innerHTML = `
-                    <span class="text-sm ${isToday ? 'bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-full font-bold shadow-sm' : 'text-slate-700'}">
-                        ${d}
-                    </span>
-                    ${hasEvent ? '<div class="absolute bottom-2 w-1.5 h-1.5 bg-blue-400 rounded-full"></div>' : ''}
-                `;
-                calendarGrid.appendChild(dayEl);
-            }
-        }
-
-        function renderEvents() {
-            if (!eventsList) return;
+            document.getElementById('modal-title').innerText = event.title;
+            const displayDate = event.startStr.includes('T') ? event.startStr.replace('T', ' ') : event.startStr;
+            document.getElementById('modal-time').innerText = displayDate;
+            document.getElementById('modal-location').innerText = props.location || '장소 정보 없음';
+            document.getElementById('modal-desc').innerText = props.desc || '내용 없음';
             
-            if (events.length === 0) {
-                eventsList.innerHTML = `
-                    <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-slate-400">
-                        등록된 일정이 없습니다. 새 일정을 추가해보세요!
-                    </div>
-                `;
-                return;
-            }
+            const deleteBtn = document.getElementById('delete-btn');
+            deleteBtn.onclick = async () => {
+                if (confirm('이 일정을 삭제하시겠습니까?')) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'schedules', event.id);
+                    await deleteDoc(docRef);
+                    closeModal();
+                }
+            };
 
-            eventsList.innerHTML = events.map(ev => `
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 group transition-all hover:shadow-md">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md mb-2 inline-block">
-                                ${ev.date} | ${ev.time}
-                            </span>
-                            <h4 class="text-lg font-bold text-slate-800">${ev.title || '제목 없음'}</h4>
-                        </div>
-                        <button onclick="deleteEvent('${ev.id}')" class="text-slate-300 hover:text-red-500 transition-colors p-1">
-                            <i data-lucide="trash-2" class="w-4 h-4 text-current"></i>
-                        </button>
-                    </div>
-                    <div class="mt-4 space-y-2">
-                        ${ev.location ? `
-                            <div class="flex items-center gap-2 text-sm text-slate-600">
-                                <i data-lucide="map-pin" class="w-3 h-3 text-slate-400 text-current"></i>
-                                <span>${ev.location}</span>
-                            </div>
-                        ` : ''}
-                        ${ev.notes ? `
-                            <div class="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-xl mt-2">
-                                <i data-lucide="file-text" class="w-3 h-3 text-slate-400 mt-0.5 shrink-0 text-current"></i>
-                                <p class="whitespace-pre-wrap">${ev.notes}</p>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `).join('');
+            modal.classList.remove('hidden');
             lucide.createIcons();
         }
 
-        // Initialize icons on load
-        window.addEventListener('load', () => lucide.createIcons());
+        window.closeModal = () => {
+            document.getElementById('detail-modal').classList.add('hidden');
+        };
+
+        // Initialize Lucide
+        lucide.createIcons();
+        document.getElementById('event-date').valueAsDate = new Date();
+
     </script>
 </body>
 </html>
